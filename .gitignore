@@ -1,0 +1,13 @@
+# build outputs
+*.exe
+trustnav
+my_run.txt
+out*.txt
+# large / regenerable data
+MH_01_easy/
+real_runs/*/mav0/
+stress_results/
+test_seed2/
+backup_before_guardrail/
+# python
+__pycache__/
