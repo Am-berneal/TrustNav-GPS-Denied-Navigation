@@ -45,7 +45,7 @@
    "sha256": "9e6d02f266f589f081fd1db249a771872160ebdb4ce591413b86f1925aa173a1"
   },
   "input": {
-   "path": "real_runs\\MH_01_easy_s1\\mav0\\imu0\\data.csv",
+   "path": "real_runs/MH_01_easy_s1/mav0/imu0/data.csv",
    "sha256": "4a965d4521ddfd64010637495b463653ca6af8e96f1730007a112c785168ecb9"
   },
   "estimated_trajectory.txt": {
