@@ -1,10 +1,8 @@
 # t_rel[s]  t_unix[s]  event  detail
-    1.00  1403636580.759  NOISE_RISING  noise now x2 of clean level (gyro x2071.0, accel x1.2) - trust lowered
-    1.00  1403636580.759  NOISE_RISING  noise now x4 of clean level (gyro x2071.0, accel x1.2) - trust lowered
-    1.00  1403636580.759  NOISE_RISING  noise now x6 of clean level (gyro x2071.0, accel x1.2) - trust lowered
-    1.00  1403636580.759  NOISE_RISING  noise now x8 of clean level (gyro x2071.0, accel x1.2) - trust lowered
    19.95  1403636599.704  SPIKE         rejected outlier on ax
    31.71  1403636611.469  SPIKE         rejected outlier on ax
+   44.00  1403636623.759  NOISE_RISING  noise now x2 of clean level, sustained (gyro x5.2, accel x5.2) - trust lowered
+   45.00  1403636624.759  NOISE_RISING  noise now x4 of clean level, sustained (gyro x5.1, accel x6.1) - trust lowered
    54.93  1403636634.684  SPIKE         rejected outlier on az
    59.18  1403636638.934  SPIKE         rejected outlier on az
    59.31  1403636639.069  SPIKE         rejected outlier on gx

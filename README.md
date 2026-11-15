@@ -1,14 +1,26 @@
+# TrustNav-IMU — Track 3 "Path Finder"
+
+6-DoF trajectory from a degrading IMU: progressive noise, bias drift, spikes, 2 s dropouts,
+then complete failure with 5 s of blind dead-reckoning. Offline, single thread, one pass.
+
+## Submission (Samsung PRISM XR Hackathon 2026, Track 03)
+| Item | Where |
+|---|---|
+| Final output | `estimated_trajectory.txt` (TUM, 36,819 poses, 6/6 checks in `validation.json`) |
+| Source code | `src/main.cpp` (submitted solver, C++17) and `src/main.py` (reference) |
+| Presentation | `presentation/Thapar_University_Cipher_Guards.pptx` and `.pdf` |
+| Demo video | DEMO_VIDEO_LINK |
+| Live console | `dashboard/TrustNav-Mission-Console.html` (GitHub Pages: https://am-berneal.github.io/TrustNav-GPS-Denied-Navigation/dashboard/TrustNav-Mission-Console.html) |
+| Package / Docker | `Dockerfile`, `metadata.json`, `tools/` |
+
+Team Cipher Guards, Thapar Institute of Engineering & Technology: Amberneal Singh.
+
 ## Get the data
 1. Download MH_01_easy.bag from Kaggle: https://www.kaggle.com/datasets/chunai/euroc-mh-01-easy-ros-bag-dataset
 2. pip install rosbags && python tools/bag_to_euroc.py MH_01_easy.bag MH_01_easy
 3. Ground truth: euroc_mav/MH_01_easy/mav0/state_groundtruth_estimate0/data.csv from
    https://www.kaggle.com/datasets/drmainak/uzh-fpv-and-euroc -> MH_01_easy/mav0/state_groundtruth_estimate0/
 4. Degrade + run + score:  bash tools/run_real.sh MH_01_easy
-
-# TrustNav-IMU — Track 3 "Path Finder"
-
-6-DoF trajectory from a degrading IMU: progressive noise, bias drift, spikes, 2 s dropouts,
-then complete failure with 5 s of blind dead-reckoning. Offline, single thread, one pass.
 
 ## Run
 ```

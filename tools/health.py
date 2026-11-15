@@ -1,8 +1,14 @@
 """TrustNav sensor-health monitor: jamming timeline, event log and per-pose confidence.
 
+Reads the degraded IMU file (and optionally the solver output) and writes, into <out_dir>:
+  events_log.txt  timestamped events: noise rising, spikes, dropouts, IMU failure
+  health.csv      per 0.5 s: gyro/accel noise ratio vs. clean start, spikes, health 0-100
+  confidence.txt  per pose of the trajectory: timestamp, confidence 0-1, state
+  health.png      timeline figure for the dashboard / demo video (needs matplotlib)
+
 Usage:
   python tools/health.py <imu0/data.csv> <out_dir> [estimated_trajectory.txt]
-Writes events_log.txt, health.csv, confidence.txt, health.png into <out_dir>.
+
 Standalone: does not change the solver or estimated_trajectory.txt.
 """
 import os
@@ -34,6 +40,13 @@ def robust_sigma(x):
     return 1.4826 * np.median(np.abs(x - np.median(x, 0)), 0)
 
 
+def noise_sigma(x):
+    """Noise level robust to spikes AND to quantised / repeated samples (where the MAD is 0):
+    RMS after clipping at the 99th percentile of |x|."""
+    q = np.quantile(np.abs(x), 0.99, axis=0)
+    return np.sqrt(np.mean(np.clip(x, -q, q) ** 2, axis=0))
+
+
 def main():
     if len(sys.argv) < 3:
         sys.exit(__doc__)
@@ -45,9 +58,10 @@ def main():
     dt = float(np.median(np.diff(t)))
     hp = highpass(x, max(3, int(round(0.1 / dt))))
     n_base = max(200, int(0.1 * len(t)))          # first 10% = clean reference
-    base = np.maximum(robust_sigma(hp[:n_base]), 1e-6)
+    base = np.maximum(noise_sigma(hp[:n_base]), 1e-6)
 
     events = []
+    # dropouts
     gaps = np.nonzero(np.diff(t) > 1.6 * dt)[0]
     gap_list = []
     for i in gaps:
@@ -55,19 +69,20 @@ def main():
         gap_list.append((a, b))
         events.append((a, 'DROPOUT_START', 'no IMU data for %.2f s - coasting on motion model' % (b - a)))
         events.append((b, 'DROPOUT_END', 'IMU back - fast re-levelling for 3 s'))
+    # windows
     edges = np.arange(0.0, t[-1] - t0 + WIN, WIN)
     idx = np.searchsorted(t - t0, edges)
-    rows, crossed = [], set()
+    rows, crossed, recent = [], set(), []
     n_spikes_total = 0
-    floor = np.array([FLOOR[0]] * 3 + [FLOOR[1]] * 3)
     for k in range(len(edges) - 1):
         s, e = idx[k], idx[k + 1]
         if e - s < 5:
             rows.append((edges[k], np.nan, np.nan, 0, 0.0))
             continue
-        sig = robust_sigma(hp[s:e]) / base
+        sig = noise_sigma(hp[s:e]) / base
         rg, ra = float(sig[:3].mean()), float(sig[3:].mean())
-        lim = SPIKE_K * robust_sigma(hp[s:e])
+        lim = SPIKE_K * robust_sigma(hp[s:e]) * 1.0
+        floor = np.array([FLOOR[0]] * 3 + [FLOOR[1]] * 3)
         sp = np.any((np.abs(hp[s:e]) > lim) & (np.abs(hp[s:e]) > floor), 1)
         ns = int(sp.sum())
         n_spikes_total += ns
@@ -75,10 +90,12 @@ def main():
             ch = int(np.argmax(np.abs(hp[s + j]) / np.maximum(lim, floor)))
             events.append((t[s + j] - t0, 'SPIKE', 'rejected outlier on %s' % ['gx', 'gy', 'gz', 'ax', 'ay', 'az'][ch]))
         r = max(rg, ra)
+        recent.append(r)
+        r_s = float(np.median(recent[-6:]))  # sustained for ~3 s, not a single noisy window
         for lv in NOISE_LEVELS:
-            if r >= lv and lv not in crossed:
+            if r_s >= lv and lv not in crossed:
                 crossed.add(lv)
-                events.append((edges[k], 'NOISE_RISING', 'noise now x%d of clean level (gyro x%.1f, accel x%.1f) - trust lowered' % (lv, rg, ra)))
+                events.append((edges[k], 'NOISE_RISING', 'noise now x%d of clean level, sustained (gyro x%.1f, accel x%.1f) - trust lowered' % (lv, rg, ra)))
         health = 100.0 / max(1.0, r) * (0.5 if ns else 1.0)
         rows.append((edges[k], rg, ra, ns, health))
     events.append((t[-1] - t0, 'IMU_FAILURE', 'last IMU sample - dead reckoning the 5 s blind window'))
@@ -93,7 +110,8 @@ def main():
         for r in rows:
             fh.write('%.2f,%.3f,%.3f,%d,%.1f\n' % r)
 
-    if traj:  # per-pose confidence: health while data flows, decay while coasting
+    # per-pose confidence: health while data flows, exponential decay while coasting
+    if traj:
         tr = np.loadtxt(traj, comments='#')[:, 0]
         hw = np.array([r[4] for r in rows]) / 100.0
         last_t = t[-1]
@@ -115,7 +133,7 @@ def main():
         import matplotlib
         matplotlib.use('Agg')
         import matplotlib.pyplot as plt
-        R = np.array(rows, float)
+        R = np.array([r for r in rows], float)
         fig, ax = plt.subplots(2, 1, figsize=(11, 5), sharex=True)
         ax[0].plot(R[:, 0], R[:, 1], label='gyro noise ratio', lw=1)
         ax[0].plot(R[:, 0], R[:, 2], label='accel noise ratio', lw=1)
@@ -128,7 +146,7 @@ def main():
         ax[0].set_title('TrustNav sensor health - red: dropouts, grey: IMU failure / blind 5 s')
         fig.tight_layout(); fig.savefig(os.path.join(out, 'health.png'), dpi=130)
     except ImportError:
-        print('matplotlib not installed - skipping health.png')
+        pass
     print('events: %d (spikes %d, dropouts %d) -> %s' % (len(events), n_spikes_total, len(gap_list), out))
 
 
