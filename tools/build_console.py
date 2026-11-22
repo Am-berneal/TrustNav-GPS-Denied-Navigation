@@ -162,11 +162,13 @@ def main():
     avg = [round(float(np.mean([r[k] for r in seeds])), 2) for k in range(1, 6)] if seeds else None
 
     meta = json.load(open(a.meta)) if os.path.exists(a.meta) else {}
-    m = meta.get('measured_real_mh01', {})
+    m = meta.get('measured_official_degrade_mh01', {})
+    dm = os.path.join(os.path.dirname(a.events), 'meta.json')  # degrade_imu.py --meta of this input, if kept
+    inj = json.load(open(dm)).get('spikes') if os.path.exists(dm) else ev.get('spike_count')
     kpi = {
-        'ram': m.get('peak_rss_mb_cpp', 3.5), 'ms': m.get('ms_per_imu_second_cpp', 0.75),
-        'ate': avg[0] if avg else round(ate, 2), 'ate_run': round(ate, 2),
-        'spikes': n_spike, 'spikes_inj': ev.get('spike_count'),
+        'ram': round(m.get('tracemalloc_peak_mb', 0.91), 2), 'ms': round(m.get('ms_per_imu_second', 8.1), 1),
+        'ate': round(ate, 2), 'ate_run': round(ate, 2), 'ref': m.get('zero_info_reference_ate_m'),
+        'spikes': n_spike, 'spikes_inj': inj,
         'dropouts': ev.get('dropouts', []), 'failure': ev['failure'], 'end': ev['end'],
         'noise_max': ev.get('noise_max'), 'n_imu': int(len(ti)), 'n_pose': int(len(te)),
     }
@@ -258,7 +260,7 @@ tr.avg td{color:var(--cy);font-weight:700}
   <canvas id="hl" height="230"></canvas>
  </section>
  <div style="grid-column:span 4;display:grid;grid-template-columns:1fr 1fr;gap:14px">
-  <section class="card"><div class="small">PEAK RAM (C++)</div><div class="big" style="color:var(--cy)"><span id="k1"></span><span class="small"> MB</span></div><div class="bar"><i id="k1b" style="background:var(--cy)"></i></div><div class="note">limit 8 MB</div></section>
+  <section class="card"><div class="small">PEAK HEAP (Python)</div><div class="big" style="color:var(--cy)"><span id="k1"></span><span class="small"> MB</span></div><div class="bar"><i id="k1b" style="background:var(--cy)"></i></div><div class="note">limit 8 MB</div></section>
   <section class="card"><div class="small">COMPUTE</div><div class="big" style="color:var(--gn)"><span id="k2"></span><span class="small"> ms</span></div><div class="bar"><i id="k2b" style="background:var(--gn)"></i></div><div class="note">per IMU second · limit 20 ms</div></section>
   <section class="card"><div class="small">AVG ERROR (ATE)</div><div class="big"><span id="k3"></span><span class="small"> m</span></div><div class="note" id="k3n"></div></section>
   <section class="card"><div class="small">SPIKES CAUGHT</div><div class="big" style="color:var(--am)" id="k4"></div><div class="note">health monitor vs injected</div></section>
@@ -280,7 +282,7 @@ tr.avg td{color:var(--cy);font-weight:700}
  <section class="card" style="grid-column:span 12">
   <div><span class="tag">[CPU]</span><span class="h">Efficiency (measured)</span></div>
   <div class="mono" style="margin-top:8px" id="eff"></div>
-  <div class="note">Measured on a laptop, C++17, single thread, offline. Limits from the Track 3 brief.</div>
+  <div class="note">Measured with tracemalloc, Python main.py, single thread, offline. Limits from the Track 3 brief.</div>
  </section>
 </div></main>
 
@@ -355,14 +357,14 @@ if(D.val){const ok=D.val.passed===D.val.total;$('gpill').innerHTML=`<span class=
 $('scrub').oninput=e=>{cur=Math.round(e.target.value/1000*(S.length-1));draw();};
 let timer=null;$('play').onclick=()=>{if(timer){clearInterval(timer);timer=null;$('play').textContent='▶ PLAY';return;}if(cur>=S.length-1)cur=0;$('play').textContent='❚❚ PAUSE';timer=setInterval(()=>{cur=Math.min(S.length-1,cur+8);$('scrub').value=cur/(S.length-1)*1000;draw();if(cur>=S.length-1){clearInterval(timer);timer=null;$('play').textContent='▶ PLAY';}},40);};
 $('k1').textContent=K.ram;$('k1b').style.width=(K.ram/8*100)+'%';$('k2').textContent=K.ms;$('k2b').style.width=(K.ms/20*100)+'%';
-$('k3').textContent=K.ate;$('k3n').textContent=D.avg?`avg of 3 seeds · this run ${K.ate_run} m`:'this run';$('k4').textContent=K.spikes_inj?`${K.spikes} / ${K.spikes_inj}`:K.spikes;
+$('k3').textContent=K.ate;$('k3n').textContent=K.ref?`official degrade_imu.py run · stand-still ${K.ref} m`:'this run';$('k4').textContent=K.spikes_inj?`${K.spikes} / ${K.spikes_inj}`:K.spikes;
 function drawStress(){const R=D.stress;let h='<tr><th>scenario</th><th>ATE m</th><th>checkpoints m</th><th>blind 5 s m</th><th>dropouts m</th><th>RPE 1 s m</th></tr>';
  R.forEach(r=>h+=`<tr><td>${r[0]}</td>${r.slice(1).map(v=>`<td>${v.toFixed(2)}</td>`).join('')}</tr>`);if(D.avg)h+=`<tr class="avg"><td>average of 3 seeds</td>${D.avg.map(v=>`<td>${v.toFixed(2)}</td>`).join('')}</tr>`;$('st').innerHTML=h;
  const j=R.filter(r=>/x3|x10|seed 1/.test(r[0])).map(r=>r[1]);$('stn').textContent=R.length?`${R.length} runs. ATE across light (x3) to heavy (x10) jamming: ${Math.min(...j).toFixed(2)}–${Math.max(...j).toFixed(2)} m. Seed-to-seed spread comes from the random bias drift.`:'Run tools/stress_test.py to fill this table.';
  const [x,w,hh]=fit($('sb'));if(!R.length)return;const mx=Math.max(...R.map(r=>r[1]))*1.15,bw=(w-40)/R.length;
  R.forEach((r,i)=>{const bh=(r[1]/mx)*(hh-60),X0=30+i*bw+bw*.18;x.fillStyle=/seed/.test(r[0])?'#22D3EE':'#F59E0B';x.fillRect(X0,hh-30-bh,bw*.64,bh);x.fillStyle='#D7E3EE';x.font='12px monospace';x.fillText(r[1].toFixed(2),X0,hh-36-bh);x.fillStyle='#7F93A6';x.font='10px monospace';x.fillText(r[0].replace('baseline noise x6, ','').replace('light jamming ','light ').replace('heavy jamming ','heavy ').replace('dropouts zeroed (not removed)','zeroed').replace('dropouts zeroed','zeroed'),X0,hh-14);});
  $('sbn').textContent='cyan: baseline jamming x6, three random seeds · amber: other jamming profiles';
- $('eff').innerHTML=`peak RAM <b style="color:var(--cy)">${K.ram} MB</b> / 8 MB &nbsp;·&nbsp; compute <b style="color:var(--gn)">${K.ms} ms</b> per IMU second / 20 ms &nbsp;·&nbsp; ${K.n_imu.toLocaleString()} IMU rows in → ${K.n_pose.toLocaleString()} poses out (gaps filled, +5 s blind)`;}
+ $('eff').innerHTML=`peak RAM <b style="color:var(--cy)">${K.ram} MB</b> / 8 MB &nbsp;·&nbsp; compute <b style="color:var(--gn)">${K.ms} ms</b> per IMU second / 20 ms &nbsp;·&nbsp; ${K.n_imu.toLocaleString()} IMU rows in → ${K.n_pose.toLocaleString()} poses out (exactly one per row)`;}
 addEventListener('resize',draw);draw();
 </script></body></html>'''
 
