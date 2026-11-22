@@ -21,7 +21,7 @@ Built for the **Samsung PRISM XR Hackathon 2026: Track 03, Path Finder** (trajec
 | Entry point | [`src/main.py`](src/main.py), standard-library Python 3 with nothing to install. Run instructions are in [`src/README.md`](src/README.md) |
 | Run metadata | [`metadata.json`](metadata.json) |
 | Presentation | [`presentation/`](presentation/) (.pptx and .pdf) |
-| Demo video | DEMO_VIDEO_LINK |
+| Demo video (2:34) | [▶ Watch the walkthrough](https://am-berneal.github.io/TrustNav-GPS-Denied-Navigation/docs/TrustNav_demo.mp4) · file in the repo: [`docs/TrustNav_demo.mp4`](docs/TrustNav_demo.mp4) |
 | Live console | [TrustNav Mission Console](https://am-berneal.github.io/TrustNav-GPS-Denied-Navigation/dashboard/TrustNav-Mission-Console.html) |
 
 ---
@@ -217,7 +217,7 @@ tools/                   validator, health monitor, scorer, degraders, stress te
 real_runs/               inputs, outputs and scores we measured on
 dashboard/               TrustNav Mission Console (static HTML)
 presentation/            slides (.pptx, .pdf)
-docs/                    README figures
+docs/                    README figures and the demo video (TrustNav_demo.mp4)
 extras/cpp_port/         older C++17 port (not the submission)
 ```
 
