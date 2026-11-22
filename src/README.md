@@ -1,5 +1,7 @@
 # TrustNav: how to run (Track 03, Path Finder)
 
+Demo video (2:34): https://youtu.be/Md4wv-Sm9wE
+
 **Entry point:** `src/main.py`. Python 3.8 or newer, standard library only, nothing to install. It runs on one thread, offline, in one streaming pass.
 
 ```bash

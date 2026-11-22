@@ -56,5 +56,7 @@
   "python_interpreter_rss_mb": 8.7,
   "ms_per_imu_second": 8.1,
   "other_levels": "level 0.5: 3.95 m, level 2.0: 4.00 m, raw EuRoC column order: 4.03 m (real_runs/official_table.md)"
- }
+ },
+ "demo_video": "https://youtu.be/Md4wv-Sm9wE",
+ "repository": "https://github.com/Am-berneal/TrustNav-GPS-Denied-Navigation"
 }

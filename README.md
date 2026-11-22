@@ -9,6 +9,10 @@ From a failing IMU alone, TrustNav recovers the full 6-DoF path, and keeps predi
 
 </div>
 
+**▶ Demo video (2:34):** [youtu.be/Md4wv-Sm9wE](https://youtu.be/Md4wv-Sm9wE)
+
+[![TrustNav demo video](https://img.youtube.com/vi/Md4wv-Sm9wE/hqdefault.jpg)](https://youtu.be/Md4wv-Sm9wE)
+
 ![TrustNav on EuRoC MH_01: estimated path vs ground truth, and position error over time](docs/trajectory.png)
 *Real EuRoC MH_01 IMU, degraded with the organisers' own `degrade_imu.py`. Left: the top view of the true path and ours. Right: error over time against raw integration and a stand-still reference.*
 
@@ -21,7 +25,7 @@ Built for the **Samsung PRISM XR Hackathon 2026: Track 03, Path Finder** (trajec
 | Entry point | [`src/main.py`](src/main.py), standard-library Python 3 with nothing to install. Run instructions are in [`src/README.md`](src/README.md) |
 | Run metadata | [`metadata.json`](metadata.json) |
 | Presentation | [`presentation/`](presentation/) (.pptx and .pdf) |
-| Demo video (2:34) | [▶ Watch the walkthrough](https://am-berneal.github.io/TrustNav-GPS-Denied-Navigation/docs/TrustNav_demo.mp4) · file in the repo: [`docs/TrustNav_demo.mp4`](docs/TrustNav_demo.mp4) |
+| Demo video (2:34) | [▶ Watch on YouTube](https://youtu.be/Md4wv-Sm9wE) · copy in the repo: [`docs/TrustNav_demo.mp4`](docs/TrustNav_demo.mp4) |
 | Live console | [TrustNav Mission Console](https://am-berneal.github.io/TrustNav-GPS-Denied-Navigation/dashboard/TrustNav-Mission-Console.html) |
 
 ---
