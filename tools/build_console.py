@@ -69,10 +69,10 @@ NARR = {
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument('--imu', default='real_runs/MH_01_easy_s1/mav0/imu0/data.csv')
+    ap.add_argument('--imu', default='real_runs/MH_01_official/data.csv')
     ap.add_argument('--est', default='estimated_trajectory.txt')
     ap.add_argument('--gt', default='MH_01_easy/mav0/state_groundtruth_estimate0/data.csv')
-    ap.add_argument('--events', default='real_runs/MH_01_easy_s1/events.json')
+    ap.add_argument('--events', default='real_runs/MH_01_official/events.json')
     ap.add_argument('--health', default='health_out')
     ap.add_argument('--stress', default='stress_results/stress_table.md')
     ap.add_argument('--meta', default='metadata.json')
@@ -96,9 +96,10 @@ def main():
     ate = float(np.sqrt(np.nanmean(err ** 2)))
 
     # IMU gyro magnitude (for the motion-state rule) on a 0.5 s grid
-    imu = np.loadtxt(a.imu, delimiter=',', comments='#')
-    ti = imu[:, 0] * 1e-9 if imu[0, 0] > 1e12 else imu[:, 0]
-    gyro = np.linalg.norm(imu[:, 1:4], axis=1)
+    import sys as _s; _s.path.insert(0, 'tools')
+    from health import load_imu_any
+    ti, imu6 = load_imu_any(a.imu)
+    gyro = np.linalg.norm(imu6[:, 0:3], axis=1)
 
     # 10 Hz series for the page
     step = max(1, int(round(0.1 / np.median(np.diff(te)))))
@@ -294,8 +295,7 @@ tr.avg td{color:var(--cy);font-weight:700}
   <div><span class="tag">[HASH]</span><span class="h">Reproducible by anyone</span></div>
   <div class="small">SHA-256 fingerprints, also stored in metadata.json</div>
   <div id="hashes" style="margin-top:10px;display:flex;flex-direction:column;gap:8px"></div>
-  <pre class="mono" style="background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:10px;white-space:pre-wrap;font-size:12px;margin-top:10px">g++ -O2 -std=c++17 -o trustnav src/main.cpp
-./trustnav &lt;input imu0/data.csv&gt; out.txt
+  <pre class="mono" style="background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:10px;white-space:pre-wrap;font-size:12px;margin-top:10px">python src/main.py &lt;input imu0/data.csv&gt; out.txt
 sha256sum out.txt   # equals estimated_trajectory.txt</pre>
  </section>
  <section class="card" style="grid-column:span 3">

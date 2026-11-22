@@ -1,0 +1,5 @@
+{
+ "name": "Corridor rectangle 4.27 x 3.05 m (7 x 5 tiles of 0.61 m)",
+ "points": {"A": [0.0, 0.0], "B": [4.27, 0.0], "C": [4.27, 3.05], "D": [0.0, 3.05]},
+ "route": "ABCDABCDABCDA"
+}

@@ -6,7 +6,7 @@ and to metadata.json under "verification".
 
 Usage (from the project folder):
   python tools/validate_output.py estimated_trajectory.txt real_runs/MH_01_easy_s1/mav0/imu0/data.csv
-Options: --blind 5  --vmax 3.0  --src src/main.cpp  --meta metadata.json  --json validation.json
+Options: --blind 5  --vmax 3.0  --src src/main.py  --meta metadata.json  --json validation.json
 Exit code 0 = all checks passed, 1 = at least one failed.
 """
 import argparse
@@ -27,9 +27,9 @@ def sha256(path):
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument('traj'); ap.add_argument('imu')
-    ap.add_argument('--blind', type=float, default=5.0)
+    ap.add_argument('--blind', type=float, default=5.0, help='kept for compatibility (unused)')
     ap.add_argument('--vmax', type=float, default=3.0, help='solver speed bound [m/s]')
-    ap.add_argument('--src', default='src/main.cpp')
+    ap.add_argument('--src', default='src/main.py')
     ap.add_argument('--meta', default='metadata.json')
     ap.add_argument('--json', default='validation.json')
     a = ap.parse_args()
@@ -70,23 +70,30 @@ def main():
         bad_cols == 0 and len(rows) > 0,
         '%d poses, %d malformed lines%s' % (len(rows), bad_cols, '' if not first_bad else ' (first at line %d)' % first_bad))
 
-    nonmono = sum(1 for i in range(1, len(t)) if t[i] <= t[i - 1])
-    add('MONOTONIC_CLOCK', 'Timestamps in seconds, strictly increasing',
-        nonmono == 0 and t and t[0] > 1e8,
-        'first %.6f s, %d out-of-order rows' % (t[0] if t else 0, nonmono))
+    # non-decreasing; a repeated timestamp is allowed only where the input itself repeats it
+    # (the official degrade_imu.py duplicates rows, and the rules want one pose per input row)
+    dup_in = sum(1 for i in range(1, len(imu_t)) if imu_t[i] == imu_t[i - 1])
+    back = sum(1 for i in range(1, len(t)) if t[i] < t[i - 1])
+    eq = sum(1 for i in range(1, len(t)) if t[i] == t[i - 1])
+    add('MONOTONIC_CLOCK', 'Timestamps in seconds, in input order (repeats only where the input repeats)',
+        back == 0 and eq <= dup_in and t and t[0] > 1e8,
+        'first %.6f s, %d backwards, %d repeated (input repeats %d)' % (t[0] if t else 0, back, eq, dup_in))
 
-    # every IMU frame has a pose (within 0.5 ms), and the blind window is covered
-    j, missing = 0, 0
-    for ti in imu_t:
-        while j < len(t) and t[j] < ti - 5e-4:
-            j += 1
-        if j >= len(t) or abs(t[j] - ti) > 5e-4:
-            missing += 1
+    # official FAQ: exactly one pose per input IMU row, same timestamps, no appended or missing poses
+    def ns(tok):
+        tok = tok.strip()
+        if '.' in tok:
+            a_, b_ = tok.split('.', 1)
+            return int(a_) * 1000000000 + int((b_ + '000000000')[:9])
+        return int(tok) if len(tok) > 12 else int(round(float(tok) * 1e9))
     dt = sorted(imu_t[i + 1] - imu_t[i] for i in range(min(len(imu_t) - 1, 2000)))[min(len(imu_t) - 2, 1000)] if len(imu_t) > 2 else 0.005
-    blind_cov = (t[-1] - imu_t[-1]) if t and imu_t else 0.0
-    add('FRAME_DENSITY_SYNC', 'One pose per IMU frame + %.0f s blind window' % a.blind,
-        missing == 0 and blind_cov >= a.blind - 1.5 * dt,
-        '%d IMU rows in, %d poses out, %d IMU frames without a pose, blind window %.2f s' % (len(imu_t), len(rows), missing, blind_cov))
+    traj_ns = [ns(l.split()[0]) for l in open(a.traj) if l.strip() and not l.lstrip().startswith('#')]
+    imu_ns = [ns(l.split(',')[0]) for l in open(a.imu) if l.strip() and l[0] != '#' and not l[0].isalpha()]
+    mism = sum(1 for x, y in zip(traj_ns, imu_ns) if abs(x - y) > 1000)  # > 1 us
+    extra = len(traj_ns) - len(imu_ns)
+    add('FRAME_DENSITY_SYNC', 'Exactly one pose per input IMU row (no appended poses)',
+        extra == 0 and mism == 0,
+        '%d IMU rows in, %d poses out, %d timestamp mismatches' % (len(imu_ns), len(traj_ns), mism))
 
     qerr = max((abs(math.sqrt(r[4] ** 2 + r[5] ** 2 + r[6] ** 2 + r[7] ** 2) - 1.0) for r in rows), default=1.0)
     add('SO3_NORM', 'Unit quaternions', qerr < 1e-6, 'max |q|-1 = %.1e' % qerr)
@@ -106,7 +113,7 @@ def main():
         jump <= jump_lim + 1e-9, 'largest step %.4f m (allowed %.4f m)' % (jump, jump_lim))
 
     hashes = {}
-    for k, pth in (('src/main.cpp', a.src), ('input', a.imu), ('estimated_trajectory.txt', a.traj)):
+    for k, pth in (('src/main.py', a.src), ('input', a.imu), ('estimated_trajectory.txt', a.traj)):
         try:
             hashes[k] = {'path': pth, 'sha256': sha256(pth)}
         except OSError:
@@ -121,7 +128,7 @@ def main():
         meta = json.load(open(a.meta))
         meta['verification'] = {'checks_passed': '%d/%d' % (n_pass, len(checks)),
                                 'sha256': {k: v['sha256'] for k, v in hashes.items()},
-                                'reproduce': 'g++ -O2 -std=c++17 -o trustnav src/main.cpp && ./trustnav <input> out.txt && sha256sum out.txt'}
+                                'reproduce': 'python src/main.py <input> out.txt && sha256sum out.txt'}
         json.dump(meta, open(a.meta, 'w'), indent=1)
     except (OSError, ValueError):
         pass

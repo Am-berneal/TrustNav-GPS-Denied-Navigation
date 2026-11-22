@@ -18,5 +18,6 @@
  "end": 184.095000064,
  "noise_max": 6.0,
  "spike_count": 46,
- "dropout_mode": "removed"
+ "dropout_mode": "removed",
+ "blind_mode": "nan"
 }

@@ -21,10 +21,28 @@ FLOOR = (0.6, 6.0)   # physical floor for a spike: gyro rad/s, accel m/s^2 (same
 NOISE_LEVELS = (2, 4, 6, 8)
 
 
+def load_imu_any(path):
+    """Any layout the official degrade_imu.py can produce -> (t [s], N x 6 array gyro xyz [rad/s], accel xyz [m/s^2])."""
+    import os, sys as _s
+    _s.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'src'))
+    from main import sniff_format
+    f = sniff_format(path)
+    with open(path, encoding='utf-8-sig') as fh:
+        first = fh.readline().strip()
+    skip = 1 if first and (first[0].isalpha() or first[0] == '"') else 0
+    d = np.genfromtxt(path, delimiter=',', comments='#', skip_header=skip)
+    t = d[:, 0] * f['ts_scale']
+    if f['ts_scale'] == 1e-9:
+        t = d[:, 0].astype(np.int64) * 1e-9
+    x = d[:, 1:7].copy()
+    if f['accel_first']:
+        x = np.hstack([x[:, 3:6], x[:, 0:3]])
+    x[:, 3:6] *= f['acc_scale']
+    return t, x
+
+
 def load_imu(path):
-    d = np.loadtxt(path, delimiter=',', comments='#')
-    t = d[:, 0].astype(np.int64) * 1e-9 if d[0, 0] > 1e12 else d[:, 0]
-    return t, d[:, 1:7]
+    return load_imu_any(path)
 
 
 def highpass(x, n):
@@ -55,6 +73,21 @@ def main():
     os.makedirs(out, exist_ok=True)
     t, x = load_imu(imu)
     t0 = t[0]
+    # unusable rows (official degrade_imu.py: zeroed failure window, stuck samples, duplicated rows; or NaN)
+    fin = np.all(np.isfinite(x), 1)
+    zero = fin & np.all(x == 0, 1)
+    same = np.r_[False, np.all(x[1:] == x[:-1], 1)]
+    dup = np.r_[False, t[1:] == t[:-1]] & same
+    stuck = same & ~dup & ~zero
+    valid = fin & ~zero & ~same
+    # failure = the trailing run of unusable rows (the blind window)
+    k = len(valid)
+    while k > 0 and not valid[k - 1]:
+        k -= 1
+    fail_rel = (t[k] - t0) if k < len(t) else None
+    n_stuck, n_dup, n_bad = int(stuck.sum()), int(dup.sum()), int((~fin).sum())
+    t_all_end = t[-1]
+    t, x = t[valid], x[valid]
     dt = float(np.median(np.diff(t)))
     hp = highpass(x, max(3, int(round(0.1 / dt))))
     n_base = max(200, int(0.1 * len(t)))          # first 10% = clean reference
@@ -63,9 +96,14 @@ def main():
     events = []
     # dropouts
     gaps = np.nonzero(np.diff(t) > 1.6 * dt)[0]
-    gap_list = []
+    gap_list, n_short = [], 0
     for i in gaps:
         a, b = t[i] - t0, t[i + 1] - t0
+        if fail_rel is not None and a >= fail_rel - 1e-6:
+            continue
+        if b - a < 0.1:  # single dropped frames: counted, not logged one by one
+            n_short += 1
+            continue
         gap_list.append((a, b))
         events.append((a, 'DROPOUT_START', 'no IMU data for %.2f s - coasting on motion model' % (b - a)))
         events.append((b, 'DROPOUT_END', 'IMU back - fast re-levelling for 3 s'))
@@ -98,7 +136,12 @@ def main():
                 events.append((edges[k], 'NOISE_RISING', 'noise now x%d of clean level, sustained (gyro x%.1f, accel x%.1f) - trust lowered' % (lv, rg, ra)))
         health = 100.0 / max(1.0, r) * (0.5 if ns else 1.0)
         rows.append((edges[k], rg, ra, ns, health))
-    events.append((t[-1] - t0, 'IMU_FAILURE', 'last IMU sample - dead reckoning the 5 s blind window'))
+    if fail_rel is not None:
+        events.append((fail_rel, 'IMU_FAILURE', 'IMU values invalid until the end (%.1f s) - dead reckoning the blind window' % (t_all_end - t0 - fail_rel)))
+    else:
+        events.append((t[-1] - t0, 'IMU_FAILURE', 'last IMU sample - dead reckoning'))
+    events.append((0.0, 'INPUT_SUMMARY', '%d short dropouts (<0.1 s), %d gaps >=0.1 s, %d stuck rows, %d duplicated rows, %d NaN rows'
+                   % (n_short, len(gap_list), n_stuck, n_dup, n_bad)))
     events.sort(key=lambda e: e[0])
 
     with open(os.path.join(out, 'events_log.txt'), 'w') as fh:
@@ -147,7 +190,8 @@ def main():
         fig.tight_layout(); fig.savefig(os.path.join(out, 'health.png'), dpi=130)
     except ImportError:
         pass
-    print('events: %d (spikes %d, dropouts %d) -> %s' % (len(events), n_spikes_total, len(gap_list), out))
+    print('events: %d (spikes %d, gaps>=0.1s %d, short drops %d, stuck %d, dup %d, failure at %s s) -> %s'
+          % (len(events), n_spikes_total, len(gap_list), n_short, n_stuck, n_dup, None if fail_rel is None else round(fail_rel, 2), out))
 
 
 if __name__ == '__main__':

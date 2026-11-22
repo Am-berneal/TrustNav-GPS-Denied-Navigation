@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 """TrustNav-IMU: 6-DoF trajectory from a degraded IMU stream.
 
-Input : EuRoC-format IMU CSV (imu0/data.csv): t[ns], gyro xyz [rad/s], accel xyz [m/s^2]
-Output: TUM poses "timestamp tx ty tz qx qy qz qw", one per IMU frame, gaps filled at the
-        nominal rate, plus a 5 s dead-reckoned extension after the IMU stops.
+Input : degraded IMU CSV (EuRoC imu0/data.csv or any layout of the official degrade_imu.py):
+        column order (gyro/accel), timestamp unit (s/ms/us/ns) and accel unit (m/s^2 or g) auto-detected
+Output: TUM poses "timestamp tx ty tz qx qy qz qw", EXACTLY one pose per input IMU row, with the
+        input timestamp copied exactly (ns -> s). Dropouts (missing rows) are bridged internally;
+        rows with invalid sensor values (e.g. the final 5 s blind window) are dead-reckoned.
 
 Python standard library only; single pass; constant memory; single thread; offline.
 
@@ -60,21 +62,93 @@ def q_from_two(u):
 
 
 # ---------------------------------------------------------------- streaming reader
-def read_rows(path):
-    with open(path, 'r') as fh:
-        for line in fh:
-            if not line or line[0] == '#' or line[0].isalpha():
-                continue
+def _data_lines(fh):
+    for line in fh:
+        line = line.strip()
+        if not line or line[0] == '#' or line[0].isalpha() or line[0] == '"':
+            continue  # blank, comment or header row
+        yield line
+
+
+def sniff_format(path, n=2000):
+    """Look at the first rows only (bounded memory) and work out the layout:
+    timestamp unit (s / ms / us / ns), which triple is the accelerometer (the official degrade_imu.py
+    documents timestamp,accel,gyro; raw EuRoC files are timestamp,gyro,accel), and accel unit (m/s^2 or g)."""
+    ts, n1, n2 = [], [], []
+    with open(path, 'r', encoding='utf-8-sig') as fh:
+        for line in _data_lines(fh):
             p = line.split(',')
-            if len(p) < 7:
-                continue
             try:
-                t = int(p[0]) * 1e-9 if '.' not in p[0] else float(p[0])
-                v = [float(s) for s in p[1:7]]
-            except ValueError:
+                t = float(p[0]); a = [float(x) for x in p[1:7]]
+            except (ValueError, IndexError):
                 continue
-            ok = all(x == x and abs(x) < 1e4 for x in v) and any(x != 0.0 for x in v)
-            yield t, v, ok
+            if len(a) < 6 or not all(x == x for x in a):
+                continue
+            ts.append(t)
+            n1.append(math.sqrt(a[0] ** 2 + a[1] ** 2 + a[2] ** 2)); n2.append(math.sqrt(a[3] ** 2 + a[4] ** 2 + a[5] ** 2))
+            if len(ts) >= n:
+                break
+    med = lambda x: sorted(x)[len(x) // 2] if x else 0.0
+    d = [b - a for a, b in zip(ts, ts[1:]) if b > a]
+    dt = med(d) if d else 0.005
+    scale = 1.0 if dt < 1.0 else 1e-3 if dt < 1e3 else 1e-6 if dt < 1e6 else 1e-9
+    m1, m2 = med(n1), med(n2)
+    # the accelerometer triple is the one whose magnitude sits near 1 g (9.81 m/s^2, or 1.0 in g units)
+    def gdist(m): return min(abs(m - G0) / G0, abs(m - 1.0))
+    accel_first = gdist(m1) < gdist(m2)
+    macc = m1 if accel_first else m2
+    acc_scale = G0 if 0.5 < macc < 2.0 else 1.0
+    return {'ts_scale': scale, 'accel_first': accel_first, 'acc_scale': acc_scale, 'dt': dt * scale}
+
+
+def _fmt_seconds(tok, scale):
+    """Input timestamp token -> seconds string, exact for integer ns / us / ms."""
+    tok = tok.strip()
+    if scale == 1.0:
+        return tok
+    if '.' not in tok and 'e' not in tok.lower():
+        k = int(tok); per = int(round(1.0 / scale)); dig = len(str(per)) - 1
+        return '%d.%0*d' % (k // per, dig, k % per)
+    return '%.9f' % (float(tok) * scale)
+
+
+def read_rows(path, fmt=None):
+    """Yield (t, values, ok, ts) for EVERY data row that has a timestamp, so that the output has
+    exactly one pose per input IMU row (duplicated rows included). values = gyro xyz [rad/s] then
+    accel xyz [m/s^2], whatever the input column order. Rows whose sensor values are unusable (blank,
+    non-numeric, NaN/inf, all zero = the official 5 s failure, frozen = identical to the previous row,
+    i.e. stuck or duplicated, or physically impossible) are yielded with ok=False; the estimator then
+    dead-reckons through them."""
+    fmt = fmt or sniff_format(path)
+    sc, af, ka = fmt['ts_scale'], fmt['accel_first'], fmt['acc_scale']
+    prev = None
+    with open(path, 'r', encoding='utf-8-sig') as fh:
+        for line in _data_lines(fh):
+            p = line.split(',')
+            try:
+                t = float(p[0]) * sc
+                if sc == 1e-9 and '.' not in p[0] and 'e' not in p[0].lower():
+                    t = int(p[0]) * 1e-9
+                ts = _fmt_seconds(p[0], sc)
+            except ValueError:
+                continue  # no usable timestamp: not an IMU frame
+            raw = []
+            for x in p[1:7]:
+                try:
+                    raw.append(float(x))
+                except ValueError:
+                    raw.append(float('nan'))
+            while len(raw) < 6:
+                raw.append(float('nan'))
+            if af:
+                v = raw[3:6] + [x * ka for x in raw[0:3]]
+            else:
+                v = raw[0:3] + [x * ka for x in raw[3:6]]
+            ok = (all(x == x and abs(x) < 1e4 for x in v) and any(x != 0.0 for x in v)
+                  and max(abs(v[0]), abs(v[1]), abs(v[2])) < 35.0 and max(abs(v[3]), abs(v[4]), abs(v[5])) < 400.0
+                  and raw != prev)
+            prev = raw
+            yield t, v, ok, ts
 
 
 # ---------------------------------------------------------------- estimator
@@ -279,9 +353,9 @@ class TrustNav:
         for i in range(3):
             self.p[i] += self.v[i] * dt
 
-    def pose_line(self, t):
+    def pose_line(self, ts):
         q = self.q
-        return '%.9f %.6f %.6f %.6f %.9f %.9f %.9f %.9f\n' % (t, self.p[0], self.p[1], self.p[2], q[1], q[2], q[3], q[0])
+        return '%s %.6f %.6f %.6f %.9f %.9f %.9f %.9f\n' % (ts, self.p[0], self.p[1], self.p[2], q[1], q[2], q[3], q[0])
 
 
 def run(cfg):
@@ -300,30 +374,29 @@ def run(cfg):
     est.initialise(buf)
     n_written = 0
     last_t = buf[0][0]
-    out.write(est.pose_line(last_t)); n_written += 1
+    out.write(est.pose_line(buf[0][3])); n_written += 1
     next_trace = last_t
 
     def handle(r):
         nonlocal last_t, n_written, next_trace
-        t, v, ok = r
+        t, v, ok, ts = r
         dt = t - last_t
-        if dt <= 0:
+        if dt <= 0:  # repeated / out-of-order timestamp: still one pose for this frame
+            out.write(est.pose_line(ts)); n_written += 1
             return
         if cfg.fill and dt > 1.6 * est.dt_nom:
             k = int(round(dt / est.dt_nom)) - 1
             for j in range(k):  # fill the gap at the nominal rate
                 tt = last_t + est.dt_nom
                 est.coast(est.dt_nom)
-                out.write(est.pose_line(tt)); n_written += 1
+                out.write(est.pose_line('%.9f' % tt)); n_written += 1
                 last_t = tt
             dt = t - last_t
-            if dt <= 0:
-                return
         if ok:
             est.step(dt, est.clean(v))
         else:
             est.coast(dt)
-        out.write(est.pose_line(t)); n_written += 1
+        out.write(est.pose_line(ts)); n_written += 1
         last_t = t
         if trace and t >= next_trace:
             next_trace = t + 0.05
@@ -341,7 +414,7 @@ def run(cfg):
     for j in range(nb):
         last_t += est.dt_nom
         est.coast(est.dt_nom)
-        out.write(est.pose_line(last_t)); n_written += 1
+        out.write(est.pose_line('%.9f' % last_t)); n_written += 1
     out.close()
     if trace:
         trace.close()
@@ -352,8 +425,8 @@ def run(cfg):
 def parse(argv=None):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument('input'); ap.add_argument('output')
-    ap.add_argument('--blind', type=float, default=5.0, help='seconds to dead-reckon after the last IMU sample')
-    ap.add_argument('--no-fill', dest='fill', action='store_false', help='do not fill timestamp gaps')
+    ap.add_argument('--blind', type=float, default=0.0, help='EXTRA seconds to append after the last row (official rules: 0; the blind window rows are in the input)')
+    ap.add_argument('--fill', dest='fill', action='store_true', default=False, help='also write poses inside timestamp gaps (off: official rules want exactly one pose per input row)')
     ap.add_argument('--init-s', type=float, default=1.0, help='length of the quiet window')
     ap.add_argument('--init-search-s', type=float, default=10.0, help='search the first N s for the quiet window')
     # components (for ablation)
@@ -367,9 +440,9 @@ def parse(argv=None):
     ap.add_argument('--kp', type=float, default=1)
     ap.add_argument('--ki', type=float, default=0.005)
     ap.add_argument('--tilt-gate', type=float, default=3.0)
-    ap.add_argument('--tau-v', type=float, default=1)
+    ap.add_argument('--tau-v', type=float, default=0.5)
     ap.add_argument('--tau-vz', type=float, default=0.5)
-    ap.add_argument('--tau-p', type=float, default=3)
+    ap.add_argument('--tau-p', type=float, default=1.5)
     ap.add_argument('--tau-c', type=float, default=0)
     ap.add_argument('--z-spring', type=float, default=1.0)
     ap.add_argument('--tau-b', type=float, default=0.5)

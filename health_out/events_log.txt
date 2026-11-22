@@ -1,52 +1,57 @@
 # t_rel[s]  t_unix[s]  event  detail
+    0.00  1403636579.759  INPUT_SUMMARY 853 short dropouts (<0.1 s), 11 gaps >=0.1 s, 487 stuck rows, 49 duplicated rows, 0 NaN rows
    19.95  1403636599.704  SPIKE         rejected outlier on ax
    31.71  1403636611.469  SPIKE         rejected outlier on ax
    44.00  1403636623.759  NOISE_RISING  noise now x2 of clean level, sustained (gyro x5.2, accel x5.2) - trust lowered
-   45.00  1403636624.759  NOISE_RISING  noise now x4 of clean level, sustained (gyro x5.1, accel x6.1) - trust lowered
-   54.93  1403636634.684  SPIKE         rejected outlier on az
-   59.18  1403636638.934  SPIKE         rejected outlier on az
-   59.31  1403636639.069  SPIKE         rejected outlier on gx
-   59.58  1403636639.339  SPIKE         rejected outlier on gx
-   61.12  1403636640.879  SPIKE         rejected outlier on gx
-   67.56  1403636647.314  SPIKE         rejected outlier on ax
-   68.25  1403636648.004  SPIKE         rejected outlier on az
-   75.72  1403636655.479  SPIKE         rejected outlier on gy
-   79.24  1403636658.994  SPIKE         rejected outlier on gy
-   80.82  1403636660.574  SPIKE         rejected outlier on ay
-   82.00  1403636661.759  SPIKE         rejected outlier on az
-   84.61  1403636664.364  SPIKE         rejected outlier on gx
-   86.61  1403636666.369  SPIKE         rejected outlier on ax
-   90.37  1403636670.124  SPIKE         rejected outlier on ax
-   95.13  1403636674.884  SPIKE         rejected outlier on gz
-   98.50  1403636678.259  DROPOUT_START no IMU data for 2.01 s - coasting on motion model
-  100.51  1403636680.264  DROPOUT_END   IMU back - fast re-levelling for 3 s
-  102.20  1403636681.954  SPIKE         rejected outlier on az
-  104.63  1403636684.384  SPIKE         rejected outlier on gy
-  105.56  1403636685.314  SPIKE         rejected outlier on az
-  105.95  1403636685.704  SPIKE         rejected outlier on ax
-  106.53  1403636686.289  SPIKE         rejected outlier on gz
-  109.89  1403636689.644  SPIKE         rejected outlier on ax
-  114.19  1403636693.949  SPIKE         rejected outlier on gy
-  115.27  1403636695.024  SPIKE         rejected outlier on ax
-  115.74  1403636695.494  SPIKE         rejected outlier on gx
-  118.48  1403636698.239  SPIKE         rejected outlier on gz
-  119.93  1403636699.689  SPIKE         rejected outlier on gz
-  120.67  1403636700.424  SPIKE         rejected outlier on ay
-  121.54  1403636701.299  SPIKE         rejected outlier on gz
-  127.38  1403636707.139  SPIKE         rejected outlier on ax
-  135.86  1403636715.614  SPIKE         rejected outlier on gz
-  138.34  1403636718.099  SPIKE         rejected outlier on az
-  139.69  1403636719.449  DROPOUT_START no IMU data for 2.00 s - coasting on motion model
-  141.70  1403636721.454  DROPOUT_END   IMU back - fast re-levelling for 3 s
-  141.72  1403636721.479  SPIKE         rejected outlier on gz
-  141.93  1403636721.689  SPIKE         rejected outlier on gx
-  147.54  1403636727.294  SPIKE         rejected outlier on az
-  153.77  1403636733.524  SPIKE         rejected outlier on gy
-  160.09  1403636739.844  SPIKE         rejected outlier on gx
-  160.86  1403636740.614  SPIKE         rejected outlier on ay
-  167.68  1403636747.439  SPIKE         rejected outlier on gx
-  168.84  1403636748.594  SPIKE         rejected outlier on gx
-  170.27  1403636750.029  SPIKE         rejected outlier on gx
-  172.39  1403636752.149  SPIKE         rejected outlier on ay
-  173.41  1403636753.169  SPIKE         rejected outlier on gz
-  179.09  1403636758.849  IMU_FAILURE   last IMU sample - dead reckoning the 5 s blind window
+   45.00  1403636624.759  NOISE_RISING  noise now x4 of clean level, sustained (gyro x5.1, accel x6.0) - trust lowered
+  126.15  1403636705.909  SPIKE         rejected outlier on gy
+  132.93  1403636712.689  DROPOUT_START no IMU data for 0.12 s - coasting on motion model
+  133.05  1403636712.804  DROPOUT_END   IMU back - fast re-levelling for 3 s
+  133.85  1403636713.604  SPIKE         rejected outlier on gx
+  134.87  1403636714.624  SPIKE         rejected outlier on gz
+  137.78  1403636717.539  SPIKE         rejected outlier on gx
+  138.90  1403636718.654  SPIKE         rejected outlier on gy
+  139.14  1403636718.894  SPIKE         rejected outlier on gz
+  139.93  1403636719.689  SPIKE         rejected outlier on gx
+  142.86  1403636722.619  SPIKE         rejected outlier on gx
+  143.02  1403636722.774  SPIKE         rejected outlier on gz
+  144.65  1403636724.409  DROPOUT_START no IMU data for 0.18 s - coasting on motion model
+  144.84  1403636724.594  DROPOUT_END   IMU back - fast re-levelling for 3 s
+  148.17  1403636727.929  SPIKE         rejected outlier on gx
+  150.73  1403636730.484  DROPOUT_START no IMU data for 0.12 s - coasting on motion model
+  150.84  1403636730.599  DROPOUT_END   IMU back - fast re-levelling for 3 s
+  151.85  1403636731.609  SPIKE         rejected outlier on gz
+  152.42  1403636732.174  DROPOUT_START no IMU data for 0.13 s - coasting on motion model
+  152.55  1403636732.304  DROPOUT_END   IMU back - fast re-levelling for 3 s
+  153.91  1403636733.664  SPIKE         rejected outlier on gy
+  156.26  1403636736.019  SPIKE         rejected outlier on gx
+  157.55  1403636737.304  SPIKE         rejected outlier on gx
+  158.49  1403636738.249  SPIKE         rejected outlier on gy
+  159.67  1403636739.429  SPIKE         rejected outlier on gy
+  160.85  1403636740.604  SPIKE         rejected outlier on gz
+  163.49  1403636743.244  SPIKE         rejected outlier on gy
+  163.99  1403636743.744  SPIKE         rejected outlier on gy
+  164.67  1403636744.429  SPIKE         rejected outlier on gy
+  164.75  1403636744.509  DROPOUT_START no IMU data for 0.14 s - coasting on motion model
+  164.90  1403636744.654  DROPOUT_END   IMU back - fast re-levelling for 3 s
+  165.20  1403636744.954  SPIKE         rejected outlier on gy
+  167.73  1403636747.489  SPIKE         rejected outlier on gx
+  169.20  1403636748.954  SPIKE         rejected outlier on gx
+  169.49  1403636749.244  SPIKE         rejected outlier on gy
+  170.05  1403636749.804  DROPOUT_START no IMU data for 0.13 s - coasting on motion model
+  170.18  1403636749.939  DROPOUT_END   IMU back - fast re-levelling for 3 s
+  170.55  1403636750.309  SPIKE         rejected outlier on gy
+  172.39  1403636752.144  SPIKE         rejected outlier on gy
+  174.63  1403636754.389  DROPOUT_START no IMU data for 0.13 s - coasting on motion model
+  174.76  1403636754.519  DROPOUT_END   IMU back - fast re-levelling for 3 s
+  175.41  1403636755.169  SPIKE         rejected outlier on gy
+  175.56  1403636755.314  SPIKE         rejected outlier on gx
+  175.61  1403636755.369  DROPOUT_START no IMU data for 0.16 s - coasting on motion model
+  175.77  1403636755.529  DROPOUT_END   IMU back - fast re-levelling for 3 s
+  175.80  1403636755.554  DROPOUT_START no IMU data for 0.17 s - coasting on motion model
+  175.97  1403636755.724  DROPOUT_END   IMU back - fast re-levelling for 3 s
+  176.35  1403636756.104  DROPOUT_START no IMU data for 0.11 s - coasting on motion model
+  176.46  1403636756.219  DROPOUT_END   IMU back - fast re-levelling for 3 s
+  177.48  1403636757.234  DROPOUT_START no IMU data for 0.22 s - coasting on motion model
+  177.70  1403636757.454  DROPOUT_END   IMU back - fast re-levelling for 3 s
+  179.10  1403636758.854  IMU_FAILURE   IMU values invalid until the end (5.0 s) - dead reckoning the blind window

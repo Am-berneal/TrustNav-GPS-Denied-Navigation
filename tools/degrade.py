@@ -8,7 +8,7 @@ Schedule (fractions of the IMU sequence length T, excluding the final blind wind
   bias drift     0.40 - end   gyro + accel bias random walk growing, plus a slow ramp
   spikes         0.30 - end   rare large outliers on random channels
   dropouts       two 2.0 s gaps at 0.55 and 0.78 (rows removed, or zeroed with --zero-dropouts)
-  failure        last 5.0 s of IMU removed (the IMU is dead; ground truth continues)
+  failure        last 5.0 s: timestamps kept, values invalid (nan by default), per the official FAQ
 """
 import argparse, json, os
 import numpy as np
@@ -21,6 +21,8 @@ def main():
     ap.add_argument('--noise-max', type=float, default=6.0)
     ap.add_argument('--zero-dropouts', action='store_true', help='keep dropout rows but zero them instead of removing')
     ap.add_argument('--blind', type=float, default=5.0)
+    ap.add_argument('--blind-mode', choices=['nan', 'zero', 'garbage', 'remove'], default='nan',
+                    help='official FAQ: blind-window timestamps stay in the file, values invalid (default nan)')
     a = ap.parse_args()
     rng = np.random.default_rng(a.seed)
     d = np.loadtxt(a.imu, delimiter=',', comments='#')
@@ -55,17 +57,23 @@ def main():
         if a.zero_dropouts: zero |= m
         else: keep &= ~m
     fail_t = T
-    keep &= ts < fail_t
+    blind = ts >= fail_t
     x[zero] = 0.0
+    if a.blind_mode == 'remove': keep &= ~blind
+    elif a.blind_mode == 'zero': x[blind] = 0.0
+    elif a.blind_mode == 'garbage': x[blind] = rng.normal(0, 50, (int(blind.sum()), 6))
     os.makedirs(os.path.join(a.out_dir, 'mav0/imu0'), exist_ok=True)
     with open(os.path.join(a.out_dir, 'mav0/imu0/data.csv'), 'w') as fh:
         fh.write('#timestamp [ns],w_RS_S_x [rad s^-1],w_RS_S_y [rad s^-1],w_RS_S_z [rad s^-1],a_RS_S_x [m s^-2],a_RS_S_y [m s^-2],a_RS_S_z [m s^-2]\n')
         for i in np.nonzero(keep)[0]:
-            fh.write('%d,%.10f,%.10f,%.10f,%.10f,%.10f,%.10f\n' % (t[i], *x[i]))
+            if blind[i] and a.blind_mode == 'nan':
+                fh.write('%d,nan,nan,nan,nan,nan,nan\n' % t[i])
+            else:
+                fh.write('%d,%.10f,%.10f,%.10f,%.10f,%.10f,%.10f\n' % (t[i], *x[i]))
     t0 = t[0] * 1e-9
     ev = {'t0': t0, 'clean_end': 0.2 * T, 'noise_start': 0.2 * T, 'bias_start': 0.4 * T, 'spikes_start': 0.3 * T,
           'dropouts': drops, 'failure': fail_t, 'end': T_all, 'noise_max': a.noise_max,
-          'spike_count': int(sp.sum()), 'dropout_mode': 'zeroed' if a.zero_dropouts else 'removed'}
+          'spike_count': int(sp.sum()), 'dropout_mode': 'zeroed' if a.zero_dropouts else 'removed', 'blind_mode': a.blind_mode}
     with open(os.path.join(a.out_dir, 'events.json'), 'w') as fh: json.dump(ev, fh, indent=1)
     print('kept', int(keep.sum()), 'of', n, 'rows;', ev)
 

@@ -4,25 +4,25 @@
    "rule": "FORMAT_TUM",
    "name": "Format: 8 numeric columns, space-separated, TUM",
    "pass": true,
-   "detail": "36819 poses, 0 malformed lines"
+   "detail": "35629 poses, 0 malformed lines"
   },
   {
    "rule": "MONOTONIC_CLOCK",
-   "name": "Timestamps in seconds, strictly increasing",
+   "name": "Timestamps in seconds, in input order (repeats only where the input repeats)",
    "pass": true,
-   "detail": "first 1403636579.758555 s, 0 out-of-order rows"
+   "detail": "first 1403636579.758555 s, 0 backwards, 49 repeated (input repeats 49)"
   },
   {
    "rule": "FRAME_DENSITY_SYNC",
-   "name": "One pose per IMU frame + 5 s blind window",
+   "name": "Exactly one pose per input IMU row (no appended poses)",
    "pass": true,
-   "detail": "35019 IMU rows in, 36819 poses out, 0 IMU frames without a pose, blind window 5.00 s"
+   "detail": "35629 IMU rows in, 35629 poses out, 0 timestamp mismatches"
   },
   {
    "rule": "SO3_NORM",
    "name": "Unit quaternions",
    "pass": true,
-   "detail": "max |q|-1 = 8.9e-10"
+   "detail": "max |q|-1 = 8.8e-10"
   },
   {
    "rule": "DYNAMICS_BOUNDS",
@@ -34,25 +34,25 @@
    "rule": "CONTINUITY_DELTA",
    "name": "No position jump between rows beyond what 3.0 m/s allows",
    "pass": true,
-   "detail": "largest step 0.0150 m (allowed 0.0158 m)"
+   "detail": "largest step 0.0337 m (allowed 0.4567 m)"
   }
  ],
  "passed": 6,
  "total": 6,
  "hashes": {
-  "src/main.cpp": {
-   "path": "src/main.cpp",
-   "sha256": "9e6d02f266f589f081fd1db249a771872160ebdb4ce591413b86f1925aa173a1"
+  "src/main.py": {
+   "path": "src/main.py",
+   "sha256": "badf9c06f50a6e0b9c3c269fbb0aa816156c430eac3d30096f449da9b0de46ef"
   },
   "input": {
-   "path": "real_runs/MH_01_easy_s1/mav0/imu0/data.csv",
-   "sha256": "4a965d4521ddfd64010637495b463653ca6af8e96f1730007a112c785168ecb9"
+   "path": "real_runs/MH_01_official/data.csv",
+   "sha256": "f9fcc248854e36088f4ace713307f70fd800a67193c015f04fd63dc50f6a8c8c"
   },
   "estimated_trajectory.txt": {
    "path": "estimated_trajectory.txt",
-   "sha256": "7f6ddee8c07411aa66c923add0688c23df1b8df1d61c95fb95ec2e24a468a28f"
+   "sha256": "2f3543db1cc424c03fd06dfba3e9d986e18bd664eb55406bea9211e4dc21994b"
   }
  },
- "imu_rows": 35019,
- "poses": 36819
+ "imu_rows": 35629,
+ "poses": 35629
 }

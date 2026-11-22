@@ -11,3 +11,10 @@ test_seed2/
 backup_before_guardrail/
 # python
 __pycache__/
+
+# organiser-provided file (circulated by email, not ours to redistribute)
+tools/official/
+backup_before_faq/
+real_runs/official_check/
+field_runs/*/mav0/
+field_runs/*/degraded.csv
